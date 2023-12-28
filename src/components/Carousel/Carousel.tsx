@@ -50,7 +50,8 @@ export interface CarouselProps {
   isIndicatorsShadow?: boolean
   selectable?: boolean
   pauseOnHover?: boolean
-  onClickSelected?: (index: number) => void
+  onClickItem?: (index: number) => void
+  onClickSelectedItem?: (index: number) => void
 }
 
 /**
@@ -114,7 +115,8 @@ const Carousel: React.FC<CarouselProps> = ({
   isIndicatorsShadow = true,
   selectable = false,
   pauseOnHover = false,
-  onClickSelected,
+  onClickItem,
+  onClickSelectedItem,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null) // The carousel container element
   const [curIndex, setCurIndex] = useState(startIndex) // Current center carousel's index
@@ -144,38 +146,40 @@ const Carousel: React.FC<CarouselProps> = ({
   /**
    * Pause
    */
-  const [pause, setPause] = useState(false) // Flag to pause carousel loop
+  const pause = useRef(false) // Flag to pause carousel loop
 
   /**
    * Slide to the previous carousel item
    */
   const slidePrev = useCallback(() => {
-    if (!pause)
-      setCurIndex((curIndex: number) => getPrevIndex(length, curIndex))
-  }, [length, pause])
+    if (pause.current) return
+    setCurIndex((curIndex: number) => getPrevIndex(length, curIndex))
+  }, [length])
 
   /**
    * Slide to the next carousel item
    */
   const slideNext = useCallback(() => {
-    if (!pause)
-      setCurIndex((curIndex: number) => getNextIndex(length, curIndex))
-  }, [length, pause])
+    if (pause.current) return
+    setCurIndex((curIndex: number) => getNextIndex(length, curIndex))
+  }, [length])
 
   const selectSlide = useCallback(
     (index: number) => {
       if (selectable) {
-        if (curIndex === index && onClickSelected) onClickSelected(index)
+        if (curIndex === index && onClickSelectedItem)
+          onClickSelectedItem(index)
+        else if (onClickItem) onClickItem(index)
         setCurIndex(index)
       }
     },
-    [curIndex, selectable, onClickSelected]
+    [curIndex, selectable, onClickSelectedItem, onClickItem]
   )
 
   const startPause = useCallback(
     (index: number) => {
-      if (pauseOnHover) {
-        if (curIndex === index) setPause(true)
+      if (pauseOnHover && curIndex === index) {
+        pause.current = true
       }
     },
     [curIndex, pauseOnHover]
@@ -183,8 +187,8 @@ const Carousel: React.FC<CarouselProps> = ({
 
   const releasePause = useCallback(
     (index: number) => {
-      if (pauseOnHover) {
-        if (curIndex === index) setPause(false)
+      if (pauseOnHover && curIndex === index) {
+        pause.current = false
       }
     },
     [curIndex, pauseOnHover]
@@ -198,7 +202,7 @@ const Carousel: React.FC<CarouselProps> = ({
   /**
    * Auto Play
    */
-  const [isFinished, setIsFinished] = useState(false) // End of an loop, when 'infiniteLoop' is false
+  const [isFinished, setIsFinished] = useState<boolean>(false) // End of an loop, when 'infiniteLoop' is false
 
   useEffect(() => {
     if (infiniteLoop) {
@@ -242,7 +246,7 @@ const Carousel: React.FC<CarouselProps> = ({
     const containerEle = containerRef.current as HTMLDivElement
     const carouselItems = containerEle.children
 
-    if (!pause) {
+    if (!pause.current) {
       if (length < 2) {
         setOneCarouselStyle(curIndex, carouselItems)
       } else if (length < 3) {
@@ -253,7 +257,7 @@ const Carousel: React.FC<CarouselProps> = ({
         setFiveCarouselStyle(length, curIndex, width, depth, carouselItems)
       }
     }
-  }, [length, curIndex, width, depth, pause])
+  }, [length, curIndex, width, depth])
 
   return (
     <div
